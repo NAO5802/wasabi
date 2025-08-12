@@ -38,7 +38,40 @@ fn locate_graphic_protocol<'a>(
     Ok(unsafe { &*graphic_output_protocol })
 }
 
-use core::{panic::PanicInfo, ptr::null_mut, slice};
+#[repr(C)]
+struct EfiSystemTable {
+    _reserved0: [u64; 12],
+    pub boot_services: &'static EfiBootServicesTable,
+}
+const _: () = assert!(offset_of!(EfiSystemTable, boot_services) == 96);
+
+#[repr(C)]
+struct EfiBootServicesTable {
+    _reserved0: [u64; 40],
+    locate_protocol: extern "win64" fn(
+        protocol: *const EfiGuid,
+        registration: *const EfiVoid,
+        interface: *mut *mut EfiVoid,
+    ) -> EfiStatus,
+}
+const _: () = assert!(offset_of!(EfiBootServicesTable, locate_protocol) == 320);
+
+const EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID: EfiGuid = EfiGuid {
+    data0: 0x9042a9de,
+    data1: 0x23dc,
+    data2: 0x4a38,
+    data3: [0x96, 0xfb, 0x7a, 0xde, 0xd0, 0x80, 0x51, 0x6a],
+};
+#[repr(C)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+struct EfiGuid {
+    pub data0: u32,
+    pub data1: u16,
+    pub data2: u16,
+    pub data3: [u8; 8],
+}
+
+use core::{mem::offset_of, panic::PanicInfo, ptr::null_mut, slice};
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {

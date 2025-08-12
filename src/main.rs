@@ -1,3 +1,5 @@
+use core::{mem::offset_of, panic::PanicInfo, ptr::null_mut, slice};
+
 #![no_std]
 #![no_main]
 
@@ -27,7 +29,9 @@ fn locate_graphic_protocol<'a>(
 
     let status = (efi_system_table.boot_services.locate_protocol)(
         &EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID,
+        // 使わないためNullポインタを渡す
         null_mut::<EfiVoid>(),
+        // 検索結果であるプロトコルの構造体へのポインタを格納するポインタ変数へのポインタ
         &mut graphic_output_protocol as *mut *mut EfiGraphicsOutputProtocol as *mut *mut EfiVoid,
     );
 
@@ -71,7 +75,33 @@ struct EfiGuid {
     pub data3: [u8; 8],
 }
 
-use core::{mem::offset_of, panic::PanicInfo, ptr::null_mut, slice};
+#[repr(C)]
+#[derive(Debug)]
+struct EfiGraphicsOutputProtocol<'a> {
+    reserved: [u64; 3],
+    pub mode: &'a EfiGraphicsOutputProtocolMode<'a>,
+}
+
+#[repr(C)]
+#[derive(Debug)]
+struct EfiGraphicsOutputProtocolMode<'a> {
+    pub max_mode: u32,
+    pub mode: u32,
+    pub info: &'a EfiGraphicsOutputProtocolPixelInfo,
+    pub size_of_info: u64,
+    pub frame_buffer_base: usize, // フレームバッファの開始アドレス
+    pub frame_buffer_size: usize, // フレームバッファのバイト単位の大きさ
+}
+
+#[repr(C)]
+#[derive(Debug)]
+struct EfiGraphicsOutputProtocolPixelInfo {
+    version: u32,
+    pub horizontal_resolution: u32, // 水平方向の画素数
+    pub vertical_resolution: u32,   // 垂直方向の画素数
+    _padding0: [u32; 5],
+    pub pixels_per_scan_line: u32, // 水平方向のデータに含まれる画素数
+}
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {

@@ -1,7 +1,18 @@
-use core::{mem::offset_of, panic::PanicInfo, ptr::null_mut, slice};
-
 #![no_std]
 #![no_main]
+
+use core::{mem::offset_of, panic::PanicInfo, ptr::null_mut, slice};
+
+type EfiVoid = u8;
+type EfiHandle = u64;
+type Result<T> = core::result::Result<T, &'static str>;
+
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+#[must_use]
+#[repr(u64)]
+enum EfiStatus {
+    Success = 0,
+}
 
 #[unsafe(no_mangle)]
 fn efi_main(_image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {

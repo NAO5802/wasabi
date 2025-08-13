@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 
-use core::{mem::offset_of, panic::PanicInfo, ptr::null_mut, slice};
+use core::{arch::asm, mem::offset_of, panic::PanicInfo, ptr::null_mut, slice};
 
 type EfiVoid = u8;
 type EfiHandle = u64;
@@ -30,7 +30,9 @@ fn efi_main(_image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
     }
 
     // println!("Hello, world!");
-    loop {}
+    loop {
+        hlt();
+    }
 }
 
 fn locate_graphic_protocol<'a>(
@@ -116,5 +118,11 @@ struct EfiGraphicsOutputProtocolPixelInfo {
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
-    loop {}
+    loop {
+        hlt();
+    }
+}
+
+pub fn hlt() {
+    unsafe { asm!("hlt") }
 }

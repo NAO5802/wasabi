@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 
-use core::{arch::asm, mem::offset_of, panic::PanicInfo, ptr::null_mut};
+use core::{arch::asm, cmp::min, mem::offset_of, panic::PanicInfo, ptr::null_mut};
 
 type EfiVoid = u8;
 type EfiHandle = u64;
@@ -40,20 +40,32 @@ trait Bitmap {
     fn height(&self) -> i64;
     fn buf_mut(&mut self) -> *mut u8;
 
+    // # Safety
+    // 戻り値のポインタは指定された座標が有効(つまりis_is_*のテストをPASSしている)である限り有効
     unsafe fn unchecked_pixel_at_mut(&mut self, x: i64, y: i64) -> *mut u32 {
-        todo!()
+        unsafe {
+            self.buf_mut()
+                .add(((y * self.pixels_per_line() + x) * self.bytes_per_pixel()) as usize)
+                as *mut u32
+        }
     }
 
     fn pixel_at_mut(&mut self, x: i64, y: i64) -> Option<&mut u32> {
-        todo!()
+        if self.is_in_x_range(x) && self.is_in_y_range(y) {
+            // # Safety
+            // xとyは常に上記のチェックにより検証される
+            unsafe { Some(&mut *(self.unchecked_pixel_at_mut(x, y))) }
+        } else {
+            None
+        }
     }
 
     fn is_in_x_range(&self, px: i64) -> bool {
-        todo!()
+        0 <= px && px < min(self.width(), self.pixels_per_line())
     }
 
     fn is_in_y_range(&self, py: i64) -> bool {
-        todo!()
+        0 <= py && py < self.height()
     }
 }
 

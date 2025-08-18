@@ -21,13 +21,17 @@ fn efi_main(_image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
     let vw = vram.width;
     let vh = vram.height;
 
-    fill_rect(&mut vram, 0xffffff, 0, 0, vw, vh).expect("fill_rect failed");
+    fill_rect(&mut vram, 0x000000, 0, 0, vw, vh).expect("fill_rect failed");
     fill_rect(&mut vram, 0xff0000, 32, 32, 32, 32).expect("fill_rect failed");
     fill_rect(&mut vram, 0x00ff00, 64, 64, 64, 64).expect("fill_rect failed");
     fill_rect(&mut vram, 0x0000ff, 128, 128, 128, 128).expect("fill_rect failed");
 
     for i in 0..256 {
         let _ = draw_point(&mut vram, 0x010101 * i as u32, i, i);
+    }
+
+    for (i, c) in "MYCATß".chars().enumerate() {
+        draw_font_fg(&mut vram, i as i64 * 16 + 256, i as i64 * 16, 0xffffff, c);
     }
 
     // println!("Hello, world!");
@@ -109,6 +113,45 @@ fn draw_line<T: Bitmap>(buf: &mut T, color: u32, x0: i64, y0: i64, x1: i64, y1: 
     Ok(())
 }
 
+fn lookup_font(c: char) -> Option<[[char; 8]; 16]> {
+    const FONT_SOURCE: &str = include_str!("./font.txt");
+    if let Ok(c) = u8::try_from(c) {
+        let mut fi = FONT_SOURCE.split('\n');
+        while let Some(line) = fi.next() {
+            if let Some(line) = line.strip_prefix("0x") {
+                if let Ok(idx) = u8::from_str_radix(line, 16) {
+                    if idx != c {
+                        continue;
+                    }
+                    let mut font = [['*'; 8]; 16];
+                    for (y, line) in fi.clone().take(16).enumerate() {
+                        for (x, c) in line.chars().enumerate() {
+                            if let Some(e) = font[y].get_mut(x) {
+                                *e = c;
+                            }
+                        }
+                    }
+                    return Some(font);
+                }
+            }
+        }
+    }
+    None
+}
+
+fn draw_font_fg<T: Bitmap>(buf: &mut T, x: i64, y: i64, color: u32, c: char) {
+    if let Some(font) = lookup_font(c) {
+        for (dy, row) in font.iter().enumerate() {
+            for (dx, pixel) in row.iter().enumerate() {
+                let color = match pixel {
+                    '*' => color,
+                    _ => continue,
+                };
+                let _ = draw_point(buf, color, x + dx as i64, y + dy as i64);
+            }
+        }
+    }
+}
 #[derive(Clone, Copy)]
 struct VramBufferInfo {
     buf: *mut u8,

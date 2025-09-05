@@ -5,10 +5,8 @@ use core::fmt::Write;
 
 use wasabi::{
     graphics::{Bitmap, draw_test_pattern, fill_rect},
-    uefi::{
-        EfiHandle, EfiMemoryType, EfiSystemTable, MemoryMapHolder, VramTextWriter,
-        exit_from_efi_services, init_vram,
-    },
+    init::init_basic_runtime,
+    uefi::{EfiHandle, EfiMemoryType, EfiSystemTable, VramTextWriter, init_vram},
 };
 
 #[unsafe(no_mangle)]
@@ -21,17 +19,8 @@ fn efi_main(image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
     fill_rect(&mut vram, 0x000000, 0, 0, vw, vh).expect("fill_rect failed");
     draw_test_pattern(&mut vram);
 
+    let memory_map = init_basic_runtime(image_handle, efi_system_table);
     let mut w = VramTextWriter::new(&mut vram);
-    for i in 0..4 {
-        writeln!(w, "i = {i}").unwrap();
-    }
-
-    let mut memory_map = MemoryMapHolder::new();
-    let status = efi_system_table
-        .boot_services
-        .get_memory_map(&mut memory_map);
-
-    writeln!(w, "{status:?}").unwrap();
 
     let mut total_memory_pages = 0;
     for e in memory_map.iter() {
@@ -49,7 +38,6 @@ fn efi_main(image_handle: EfiHandle, efi_system_table: &EfiSystemTable) {
     )
     .unwrap();
 
-    exit_from_efi_services(image_handle, efi_system_table, &mut memory_map);
     writeln!(w, "Hello, Non-UEFIworld!").unwrap();
 
     loop {
